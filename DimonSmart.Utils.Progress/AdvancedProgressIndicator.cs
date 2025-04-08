@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Diagnostics;
 
 namespace DimonSmart.Utils.Progress
 {
     /// <summary>
     /// Advanced progress indicator that times subtasks and calculates the estimated end time.
-    /// The calculation includes both measured and other lengthy operations in the main loop.
-    /// Uses a sliding window of the most recent iteration durations to compute the average iteration time.
+    /// Uses a sliding window of the most recent iteration durations to compute the effective average iteration time.
     /// </summary>
     public class AdvancedProgressIndicator : IDisposable
     {
@@ -17,7 +13,7 @@ namespace DimonSmart.Utils.Progress
         private readonly Stopwatch _overallStopwatch;
         private readonly Dictionary<string, SubTaskInfo> _subTasks;
 
-        // Fields for implementing the sliding window
+        // Sliding window fields
         private readonly int _windowSize;
         private readonly Queue<long> _iterationTicksQueue;
         private long _lastIterationTicks;
@@ -32,67 +28,72 @@ namespace DimonSmart.Utils.Progress
         /// Initializes with the specified total number of iterations.
         /// </summary>
         /// <param name="totalItems">Total number of iterations/operations.</param>
-        /// <param name="windowSize">
-        /// Number of iterations to consider for the sliding window average.
-        /// Default value is 10.
-        /// </param>
+        /// <param name="windowSize">Number of iterations to consider for the sliding window. Default value is 10.</param>
         public AdvancedProgressIndicator(int totalItems, int windowSize = 10)
         {
             _totalItems = totalItems;
             _processedItems = 0;
             _overallStopwatch = Stopwatch.StartNew();
-            _subTasks = new Dictionary<string, SubTaskInfo>();
+            _subTasks = [];
 
-            // Initialize the sliding window
             _windowSize = windowSize;
             _iterationTicksQueue = new Queue<long>();
             _lastIterationTicks = _overallStopwatch.ElapsedTicks;
         }
 
+        /// <summary>
+        /// Number of remaining iterations.
+        /// </summary>
         public int ItemsLeft => _totalItems - _processedItems;
 
         /// <summary>
-        /// Average iteration time computed from total elapsed time (including non-measured operations).
+        /// Overall average iteration time computed from the entire elapsed time.
         /// </summary>
-        public TimeSpan AverageItemTime
+        public TimeSpan OverallAverageItemTime
         {
             get
             {
                 if (_processedItems == 0)
+                {
                     return TimeSpan.Zero;
+                }
+
                 return TimeSpan.FromTicks(_overallStopwatch.Elapsed.Ticks / _processedItems);
             }
         }
 
         /// <summary>
-        /// Average iteration time computed over the sliding window of recent iterations.
+        /// Average iteration time computed over the sliding window of the most recent iterations.
+        /// If the window is not yet filled, the overall average can be used.
         /// </summary>
         public TimeSpan SlidingAverageItemTime
         {
             get
             {
                 if (_iterationTicksQueue.Count == 0)
-                    return TimeSpan.Zero;
-                long sumTicks = _iterationTicksQueue.Sum();
+                {
+                    return OverallAverageItemTime;
+                }
+
+                var sumTicks = _iterationTicksQueue.Sum();
                 return TimeSpan.FromTicks(sumTicks / _iterationTicksQueue.Count);
             }
         }
 
         /// <summary>
-        /// Estimated completion time calculated using sliding window average.
-        /// Note: Long non-measured operations in the main loop will affect this estimation.
+        /// Effective average time used for estimation.
+        /// If the window contains data, the sliding average is used; otherwise, the overall average is used.
+        /// </summary>
+        public TimeSpan EffectiveAverageItemTime => _iterationTicksQueue.Count > 0 ? SlidingAverageItemTime : OverallAverageItemTime;
+
+        /// <summary>
+        /// Estimated completion time calculated using the effective average iteration time.
         /// </summary>
         public DateTime EstimatedEndTime
         {
             get
             {
-                // Use the sliding window for a more adaptive calculation of average iteration time.
-                var average = SlidingAverageItemTime;
-                // If there is no data in the sliding window yet, use the overall average.
-                if (average == TimeSpan.Zero)
-                    average = AverageItemTime;
-
-                // Estimate the total duration of the loop based on the average time and total iterations.
+                var average = EffectiveAverageItemTime;
                 var estimatedTotalDuration = TimeSpan.FromTicks(average.Ticks * _totalItems);
                 var remainingTime = estimatedTotalDuration - _overallStopwatch.Elapsed;
                 return DateTime.Now + remainingTime;
@@ -105,12 +106,10 @@ namespace DimonSmart.Utils.Progress
         /// </summary>
         public void Update()
         {
-            // Calculate the time spent on the current iteration.
-            long nowTicks = _overallStopwatch.ElapsedTicks;
-            long iterationTicks = nowTicks - _lastIterationTicks;
+            var nowTicks = _overallStopwatch.ElapsedTicks;
+            var iterationTicks = nowTicks - _lastIterationTicks;
             _lastIterationTicks = nowTicks;
 
-            // Add the iteration time to the queue (sliding window)
             _iterationTicksQueue.Enqueue(iterationTicks);
             if (_iterationTicksQueue.Count > _windowSize)
             {
@@ -160,28 +159,23 @@ namespace DimonSmart.Utils.Progress
         public void Dispose()
         {
             _overallStopwatch.Stop();
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
         /// Helper class for timing a subtask.
         /// </summary>
-        private class SubTaskTimer : IDisposable
+        private class SubTaskTimer(AdvancedProgressIndicator indicator, string taskName) : IDisposable
         {
-            private readonly AdvancedProgressIndicator _indicator;
-            private readonly string _taskName;
-            private readonly Stopwatch _stopwatch;
-
-            public SubTaskTimer(AdvancedProgressIndicator indicator, string taskName)
-            {
-                _indicator = indicator;
-                _taskName = taskName;
-                _stopwatch = Stopwatch.StartNew();
-            }
+            private readonly AdvancedProgressIndicator _indicator = indicator;
+            private readonly string _taskName = taskName;
+            private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
             public void Dispose()
             {
                 _stopwatch.Stop();
                 _indicator.AddSubTaskTime(_taskName, _stopwatch.Elapsed);
+                GC.SuppressFinalize(this);
             }
         }
     }

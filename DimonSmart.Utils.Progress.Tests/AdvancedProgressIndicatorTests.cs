@@ -50,7 +50,7 @@ namespace DimonSmart.Utils.Progress.Tests
         public void MultipleSubTasks_RecordSeparateTimings()
         {
             using var progress = new AdvancedProgressIndicator(1);
-            
+
             // First sub-task
             using (progress.BeginSubTask("Task1"))
             {

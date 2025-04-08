@@ -25,10 +25,10 @@
   </PropertyGroup>
 
 
-	<ItemGroup>
-		<None Include="..\README.md" Pack="True" PackagePath="/" />
-		<None Include="ProgressIcon.png" Pack="True" PackagePath="/" />
-	</ItemGroup>
+    <ItemGroup>
+        <None Include="..\README.md" Pack="True" PackagePath="/" />
+        <None Include="ProgressIcon.png" Pack="True" PackagePath="/" />
+    </ItemGroup>
 
 
 </Project>

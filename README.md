@@ -15,6 +15,7 @@ DimonSmart.Progress is a .NET library providing an advanced progress indicator t
 - **Subtask Measurement**: Measure and analyze the time taken by different components of your process
 - **Estimated Completion Time**: Get real-time predictions of when the entire operation will finish
 - **Performance Analysis**: Calculate average times for individual subtasks and iterations
+- **Sliding Window Analysis**: Get more accurate time estimates by using recent iterations (rather than all iterations) for calculations
 
 ## Installation
 
@@ -27,8 +28,8 @@ dotnet add package DimonSmart.Utils.Progress
 ### Basic Example
 
 ```csharp
-// Initialize with the total number of items to process
-using var progress = new AdvancedProgressIndicator(totalItems: 1000);
+// Initialize with the total number of items to process and optional window size
+using var progress = new AdvancedProgressIndicator(totalItems: 1000, windowSize: 10);
 
 // Process items in a loop
 for (int i = 0; i < 1000; i++)
@@ -53,7 +54,7 @@ for (int i = 0; i < 1000; i++)
     // Optionally display progress information
     Console.WriteLine($"Processed: {i+1}/1000");
     Console.WriteLine($"Estimated completion: {progress.EstimatedEndTime}");
-    Console.WriteLine($"Average time per item: {progress.AverageItemTime}");
+    Console.WriteLine($"Effective average time per item: {progress.EffectiveAverageItemTime}");
 }
 ```
 
@@ -77,17 +78,19 @@ The main class providing progress tracking functionality.
 
 #### Constructor
 
-- `AdvancedProgressIndicator(int totalItems)` - Initialize with the total number of items to process
+- `AdvancedProgressIndicator(int totalItems, int windowSize = 10)` - Initialize with the total number of items to process and optional sliding window size
 
 #### Properties
 
 - `ItemsLeft` - Number of items remaining to be processed
-- `AverageItemTime` - Average time per iteration
-- `EstimatedEndTime` - Projected completion time based on current performance
+- `OverallAverageItemTime` - Average time per iteration based on all processed items
+- `SlidingAverageItemTime` - Average time per iteration based on the most recent iterations (window size)
+- `EffectiveAverageItemTime` - The actual average used for time estimates (uses sliding average if available)
+- `EstimatedEndTime` - Projected completion time based on the effective average time
 
 #### Methods
 
-- `Update()` - Increment the processed items count
+- `Update()` - Increment the processed items count and update sliding window time measurements
 - `BeginSubTask(string taskName)` - Start timing a specific subtask (returns IDisposable)
 - `GetTaskTime(string taskName)` - Get average execution time for a specific subtask
 
