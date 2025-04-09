@@ -87,16 +87,19 @@ namespace DimonSmart.Utils.Progress
         public TimeSpan EffectiveAverageItemTime => _iterationTicksQueue.Count > 0 ? SlidingAverageItemTime : OverallAverageItemTime;
 
         /// <summary>
-        /// Estimated completion time calculated using the effective average iteration time.
+        /// Estimated completion time calculated using the sliding window average time.
+        /// Returns null if there's not enough data in the sliding window.
         /// </summary>
-        public DateTime EstimatedEndTime
+        public DateTime? EstimatedEndTime
         {
             get
             {
-                var average = EffectiveAverageItemTime;
-                var estimatedTotalDuration = TimeSpan.FromTicks(average.Ticks * _totalItems);
-                var remainingTime = estimatedTotalDuration - _overallStopwatch.Elapsed;
-                return DateTime.Now + remainingTime;
+                if (_iterationTicksQueue.Count == 0) return null;
+
+                var slidingAverage = SlidingAverageItemTime;
+                var remainingItems = ItemsLeft;
+                var estimatedRemainingTicks = slidingAverage.Ticks * remainingItems;
+                return DateTime.Now + TimeSpan.FromTicks(estimatedRemainingTicks);
             }
         }
 

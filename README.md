@@ -53,7 +53,8 @@ for (int i = 0; i < 1000; i++)
     
     // Optionally display progress information
     Console.WriteLine($"Processed: {i+1}/1000");
-    Console.WriteLine($"Estimated completion: {progress.EstimatedEndTime}");
+    if (progress.EstimatedEndTime.HasValue)
+        Console.WriteLine($"Estimated completion: {progress.EstimatedEndTime.Value}");
     Console.WriteLine($"Effective average time per item: {progress.EffectiveAverageItemTime}");
 }
 ```
@@ -86,7 +87,7 @@ The main class providing progress tracking functionality.
 - `OverallAverageItemTime` - Average time per iteration based on all processed items
 - `SlidingAverageItemTime` - Average time per iteration based on the most recent iterations (window size)
 - `EffectiveAverageItemTime` - The actual average used for time estimates (uses sliding average if available)
-- `EstimatedEndTime` - Projected completion time based on the effective average time
+- `EstimatedEndTime` - Projected completion time based on the sliding window average time. Returns null if there's not enough data in the sliding window.
 
 #### Methods
 

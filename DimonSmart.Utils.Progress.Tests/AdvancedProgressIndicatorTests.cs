@@ -32,6 +32,9 @@ namespace DimonSmart.Utils.Progress.Tests
         public void EstimatedEndTime_ReturnsFutureTime()
         {
             using var progress = new AdvancedProgressIndicator(5);
+            // Initially should return null as no iterations completed
+            Assert.Null(progress.EstimatedEndTime);
+
             // Perform a couple of iterations with an artificial delay
             for (var i = 0; i < 2; i++)
             {
@@ -43,6 +46,7 @@ namespace DimonSmart.Utils.Progress.Tests
             }
 
             var estimate = progress.EstimatedEndTime;
+            Assert.NotNull(estimate);
             Assert.True(estimate > DateTime.Now);
         }
 
